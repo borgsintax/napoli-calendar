@@ -7,3 +7,6 @@ Calendario partite SSC Napoli in formato `.ics`, aggiornabile automaticamente.
 2. Impostazioni → Aggiungi calendario → Da URL
 3. Usa questo link:
 
+
+Il calendario si aggiornerà automaticamente.
+webcal://raw.githubusercontent.com/borgsintax/napoli-calendar/main/napoli.ics
