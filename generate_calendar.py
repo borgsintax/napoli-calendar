@@ -14,6 +14,7 @@ for name, url in feeds.items():
         if KEYWORD.lower() in event.name.lower():
             event.name = "⚽ " + event.name
             final_calendar.events.add(event)
+            
+with open("napoli.ics", "w", encoding="utf-8") as f:
+    f.write(final_calendar.serialize())
 
-with open("napoli.ics", "w") as f:
-    f.writelines(final_calendar)
