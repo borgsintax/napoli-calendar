@@ -4,7 +4,7 @@ Calendario completo SSC Napoli:
 - Serie A
 - Champions League
 - Coppa Italia
-- Supercoppa
+
 
 📲 GOOGLE CALENDAR (UNA SOLA VOLTA)
 
