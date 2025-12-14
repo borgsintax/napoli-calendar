@@ -96,10 +96,16 @@ def main():
         final_calendar=final_calendar,
         skip_if_seen=True
     )
+    # 4) DEBUG: mostra il contenuto generato dell'ICS
+    print("===== DEBUG: ICS GENERATO =====")
+    ics_text = final_calendar.serialize()
+    print(ics_text)
+    print("===== FINE DEBUG =====")
 
-    # 4) Scrive il file ICS finale
+    # 5) Scrive il file ICS finale
     with open("napoli.ics", "w", encoding="utf-8") as f:
-        f.write(final_calendar.serialize())
+        f.write(ics_text)
+
 
 
 if __name__ == "__main__":
