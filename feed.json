@@ -1,0 +1,6 @@
+{
+  "serie_a": "https://www.calendarlabs.com/ical-calendar/ics/76/Serie_A.ics",
+  "champions": "https://ics.fixtur.es/v2/uefa-champions-league.ics",
+  "coppa_italia": "https://ics.fixtur.es/v2/coppa-italia.ics",
+  "supercoppa": "https://ics.fixtur.es/v2/supercoppa-italiana.ics"
+}
