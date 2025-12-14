@@ -1,11 +1,10 @@
 import json
-import re
-
 import requests
 from ics import Calendar
 
 
 KEYWORD = "Napoli"
+EXCLUDE_YEAR = 2024   # escludiamo gli eventi di questo anno
 
 
 def load_calendar(url: str) -> Calendar:
@@ -15,79 +14,62 @@ def load_calendar(url: str) -> Calendar:
     return Calendar(resp.text)
 
 
-def normalize_summary(summary: str) -> str:
+def event_time_key(event) -> str | None:
     """
-    Normalizza il nome della partita per confronti "parziali".
-    - minuscolo
-    - toglie punteggiature strane, punteggi, parentesi, numeri
-    - compatta gli spazi
+    Restituisce una chiave basata SOLO sull'orario di inizio
+    (data + ora al minuto), usata per riconoscere i duplicati.
     """
-    s = summary.lower()
+    if not event.begin:
+        return None
 
-    # normalizza separatori
-    s = s.replace("–", " ").replace("—", " ").replace("-", " ")
-
-    # rimuove contenuto tra parentesi (es. punteggi, minuti, ecc.)
-    s = re.sub(r"\([^)]*\)", " ", s)
-
-    # rimuove cifre (es. risultati 2-1, 1^ giornata, ecc.)
-    s = re.sub(r"\d", " ", s)
-
-    # tiene solo lettere, spazi
-    s = re.sub(r"[^a-zàèéìòù\s]", " ", s)
-
-    # compatta spazi
-    s = re.sub(r"\s+", " ", s)
-
-    return s.strip()
+    # Normalizziamo in UTC e arrotondiamo al minuto
+    dt = event.begin.to("UTC")
+    return dt.format("YYYY-MM-DD HH:mm")
 
 
-def collect_napoli_events(cal: Calendar):
+def add_events_from_calendar(
+    cal: Calendar,
+    seen_times: set[str],
+    final_calendar: Calendar,
+    skip_if_seen: bool
+):
     """
-    Estrae solo gli eventi che contengono 'Napoli' nel nome
-    e restituisce tuple (data_str, summary_normalizzato, event).
+    Aggiunge gli eventi del Napoli da un calendario:
+    - se skip_if_seen=True (secondario), salta quelli con stessa data+ora
+    - se skip_if_seen=False (primario), aggiunge sempre
+    - esclude gli eventi del 2024
     """
-    result = []
-    for e in cal.events:
-        name = e.name or ""
+    for event in cal.events:
+        name = event.name or ""
+
+        # tiene solo eventi del Napoli
         if KEYWORD.lower() not in name.lower():
             continue
 
-        # prefisso carino per il calendario
+        # esclude 2024
+        if event.begin and event.begin.year == EXCLUDE_YEAR:
+            continue
+
+        key = event_time_key(event)
+
+        # deduplica nel secondario
+        if skip_if_seen and key is not None and key in seen_times:
+            continue
+
+        # aggiungi prefisso al summary
         if not name.startswith("⚽ "):
-            e.name = "⚽ " + name
+            event.name = "⚽ " + name
 
-        date_str = e.begin.date().isoformat() if e.begin else None
-        norm = normalize_summary(name)
-        result.append((date_str, norm, e))
-    return result
+        # salva evento nel calendario finale
+        final_calendar.events.add(event)
 
-
-def is_duplicate(date_str: str, norm_secondary: str, primary_index):
-    """
-    Ritorna True se, in quella data, esiste già nel primario
-    una partita 'simile' (almeno una parola in comune diversa da 'napoli').
-    """
-    if date_str not in primary_index:
-        return False
-
-    # token del secondario, esclusa la parola 'napoli'
-    tokens2 = [t for t in norm_secondary.split() if t != "napoli"]
-    if not tokens2:
-        return False
-
-    for norm_primary in primary_index[date_str]:
-        tokens1 = [t for t in norm_primary.split() if t != "napoli"]
-        # parole in comune (es. 'inter', 'milan', 'juventus'…)
-        common = set(tokens1) & set(tokens2)
-        if common:
-            return True
-
-    return False
+        # registra la chiave oraria per dedup
+        if key is not None:
+            seen_times.add(key)
 
 
 def main():
-    # 1) Legge gli URL dei feed
+    # 1) Legge gli URL
     with open("feeds.json", encoding="utf-8") as f:
         feeds = json.load(f)
 
@@ -95,30 +77,27 @@ def main():
     secondary_url = feeds["secondary"]
 
     final_calendar = Calendar()
+    seen_times: set[str] = set()
 
-    # 2) Feed PRIMARIO: prendiamo tutti gli eventi del Napoli
+    # 2) Feed PRIMARIO: inserisce tutto (tranne 2024)
     primary_cal = load_calendar(primary_url)
-    primary_events = collect_napoli_events(primary_cal)
+    add_events_from_calendar(
+        cal=primary_cal,
+        seen_times=seen_times,
+        final_calendar=final_calendar,
+        skip_if_seen=False
+    )
 
-    # indicizzazione per data
-    primary_index = {}
-    for date_str, norm, event in primary_events:
-        final_calendar.events.add(event)
-        primary_index.setdefault(date_str, []).append(norm)
-
-    # 3) Feed SECONDARIO: aggiungiamo solo quelli mancanti
+    # 3) Feed SECONDARIO: inserisce solo partite mancanti (tranne 2024)
     secondary_cal = load_calendar(secondary_url)
-    secondary_events = collect_napoli_events(secondary_cal)
+    add_events_from_calendar(
+        cal=secondary_cal,
+        seen_times=seen_times,
+        final_calendar=final_calendar,
+        skip_if_seen=True
+    )
 
-    for date_str, norm, event in secondary_events:
-        # se è "parzialmente uguale" a uno del primario, lo saltiamo
-        if is_duplicate(date_str, norm, primary_index):
-            continue
-
-        final_calendar.events.add(event)
-        primary_index.setdefault(date_str, []).append(norm)
-
-    # 4) Scrive il file ICS finale in modo corretto
+    # 4) Scrive il file ICS finale
     with open("napoli.ics", "w", encoding="utf-8") as f:
         f.write(final_calendar.serialize())
 
