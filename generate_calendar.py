@@ -1,128 +1,122 @@
 import json
 import re
-from typing import Iterable, Tuple, Optional
 
 import requests
-from ics import Calendar, Event
+from ics import Calendar
 
 
 KEYWORD = "Napoli"
 
-PRIMARY_KEY = "primary"
-SECONDARY_KEY = "secondary"
 
-
-def download_calendar(url: str) -> Calendar:
+def load_calendar(url: str) -> Calendar:
     """Scarica il feed ICS e lo converte in Calendar."""
     resp = requests.get(url, timeout=30)
     resp.raise_for_status()
     return Calendar(resp.text)
 
 
-def normalize_team_name(name: str) -> str:
-    """Normalizza il nome squadra per il confronto."""
-    name = name.lower()
-    name = re.sub(r"[^a-z0-9 ]+", " ", name)
-    name = re.sub(r"\s+", " ", name)
-    return name.strip()
-
-
-def extract_teams(summary: str) -> Optional[Tuple[str, str]]:
+def normalize_summary(summary: str) -> str:
     """
-    Prova a estrarre i nomi delle due squadre dal SUMMARY.
-    Funziona con formati tipo:
-      "Napoli - Inter"
-      "Inter v Napoli"
-      "Napoli vs Milan"
-    Restituisce (team1, team2) oppure None se non riesce a parsare.
+    Normalizza il nome della partita per confronti "parziali".
+    - minuscolo
+    - toglie punteggiature strane, punteggi, parentesi, numeri
+    - compatta gli spazi
     """
-    if not summary:
-        return None
+    s = summary.lower()
 
-    text = summary
-    # uniforma qualche separatore
-    text = text.replace("–", "-").replace("—", "-")
+    # normalizza separatori
+    s = s.replace("–", " ").replace("—", " ").replace("-", " ")
 
-    separators = [" vs ", " v ", " - ", "-"]
-    for sep in separators:
-        if sep in text:
-            parts = text.split(sep)
-            if len(parts) == 2:
-                team1 = normalize_team_name(parts[0])
-                team2 = normalize_team_name(parts[1])
-                if team1 and team2:
-                    return team1, team2
-    return None
+    # rimuove contenuto tra parentesi (es. punteggi, minuti, ecc.)
+    s = re.sub(r"\([^)]*\)", " ", s)
+
+    # rimuove cifre (es. risultati 2-1, 1^ giornata, ecc.)
+    s = re.sub(r"\d", " ", s)
+
+    # tiene solo lettere, spazi
+    s = re.sub(r"[^a-zàèéìòù\s]", " ", s)
+
+    # compatta spazi
+    s = re.sub(r"\s+", " ", s)
+
+    return s.strip()
 
 
-def build_signature(event: Event) -> Tuple[Optional[str], str]:
+def collect_napoli_events(cal: Calendar):
     """
-    Crea una 'firma' per l'evento per riconoscere i duplicati.
-    Preferisce (data, squadre_ordinate).
-    In fallback usa (data, summary_normalizzato).
+    Estrae solo gli eventi che contengono 'Napoli' nel nome
+    e restituisce tuple (data_str, summary_normalizzato, event).
     """
-    date_str = None
-    if event.begin:
-        date_str = event.begin.date().isoformat()
+    result = []
+    for e in cal.events:
+        name = e.name or ""
+        if KEYWORD.lower() not in name.lower():
+            continue
 
-    summary = event.name or ""
-    teams = extract_teams(summary)
-    if teams:
-        t1, t2 = teams
-        key_name = " vs ".join(sorted((t1, t2)))
-    else:
-        key_name = normalize_team_name(summary)
+        # prefisso carino per il calendario
+        if not name.startswith("⚽ "):
+            e.name = "⚽ " + name
 
-    return date_str, key_name
-
-
-def iter_napoli_events(cal: Calendar) -> Iterable[Event]:
-    """Ritorna solo gli eventi che contengono 'Napoli' nel nome."""
-    for event in cal.events:
-        name = event.name or ""
-        if KEYWORD.lower() in name.lower():
-            yield event
+        date_str = e.begin.date().isoformat() if e.begin else None
+        norm = normalize_summary(name)
+        result.append((date_str, norm, e))
+    return result
 
 
-def main() -> None:
+def is_duplicate(date_str: str, norm_secondary: str, primary_index):
+    """
+    Ritorna True se, in quella data, esiste già nel primario
+    una partita 'simile' (almeno una parola in comune diversa da 'napoli').
+    """
+    if date_str not in primary_index:
+        return False
+
+    # token del secondario, esclusa la parola 'napoli'
+    tokens2 = [t for t in norm_secondary.split() if t != "napoli"]
+    if not tokens2:
+        return False
+
+    for norm_primary in primary_index[date_str]:
+        tokens1 = [t for t in norm_primary.split() if t != "napoli"]
+        # parole in comune (es. 'inter', 'milan', 'juventus'…)
+        common = set(tokens1) & set(tokens2)
+        if common:
+            return True
+
+    return False
+
+
+def main():
     # 1) Legge gli URL dei feed
     with open("feeds.json", encoding="utf-8") as f:
         feeds = json.load(f)
 
-    if PRIMARY_KEY not in feeds or SECONDARY_KEY not in feeds:
-        raise SystemExit(
-            "feeds.json deve contenere almeno le chiavi 'primary' e 'secondary'"
-        )
+    primary_url = feeds["primary"]
+    secondary_url = feeds["secondary"]
 
     final_calendar = Calendar()
-    seen_signatures = set()
 
-    # 2) Feed principale: prendiamo TUTTE le partite del Napoli
-    primary_cal = download_calendar(feeds[PRIMARY_KEY])
-    for event in iter_napoli_events(primary_cal):
-        sig = build_signature(event)
+    # 2) Feed PRIMARIO: prendiamo tutti gli eventi del Napoli
+    primary_cal = load_calendar(primary_url)
+    primary_events = collect_napoli_events(primary_cal)
 
-        name = event.name or ""
-        if not name.startswith("⚽ "):
-            event.name = "⚽ " + name
-
+    # indicizzazione per data
+    primary_index = {}
+    for date_str, norm, event in primary_events:
         final_calendar.events.add(event)
-        seen_signatures.add(sig)
+        primary_index.setdefault(date_str, []).append(norm)
 
-    # 3) Feed secondario: solo gli eventi NON presenti nel principale
-    secondary_cal = download_calendar(feeds[SECONDARY_KEY])
-    for event in iter_napoli_events(secondary_cal):
-        sig = build_signature(event)
-        if sig in seen_signatures:
-            # è una partita che abbiamo già dal feed principale → la saltiamo
+    # 3) Feed SECONDARIO: aggiungiamo solo quelli mancanti
+    secondary_cal = load_calendar(secondary_url)
+    secondary_events = collect_napoli_events(secondary_cal)
+
+    for date_str, norm, event in secondary_events:
+        # se è "parzialmente uguale" a uno del primario, lo saltiamo
+        if is_duplicate(date_str, norm, primary_index):
             continue
 
-        name = event.name or ""
-        if not name.startswith("⚽ "):
-            event.name = "⚽ " + name
-
         final_calendar.events.add(event)
-        seen_signatures.add(sig)
+        primary_index.setdefault(date_str, []).append(norm)
 
     # 4) Scrive il file ICS finale in modo corretto
     with open("napoli.ics", "w", encoding="utf-8") as f:
