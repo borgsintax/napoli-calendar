@@ -1,13 +1,12 @@
-# Calendario SSC Napoli (Autoaggiornante)
+# Calendario SSC Napoli – Autoaggiornante
 
-Calendario partite SSC Napoli in formato `.ics`, aggiornabile automaticamente.
+Calendario completo SSC Napoli:
+- Serie A
+- Champions League
+- Coppa Italia
+- Supercoppa
 
-## Come usarlo su Google Calendar
-1. Apri Google Calendar
-2. Impostazioni → Aggiungi calendario → Da URL
-3. Usa questo link:
+## Google Calendar
+Aggiungi da URL:
 
-webcal://raw.githubusercontent.com/borgsintax/napoli-calendar/main/napoli.ics
-
-Il calendario si aggiornerà automaticamente.
-
+webcal://raw.githubusercontent.com/TUOUSERNAME/napoli-calendar/main/napoli.ics
