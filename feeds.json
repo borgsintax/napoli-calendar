@@ -1,4 +1,4 @@
 {
-  "footballwebpages_napoli": "https://www.footballwebpages.co.uk/napoli/calendar.ics",
-  "napoli_fixtur_es": "http://ics.fixtur.es/v2/napoli.ics"
+  "primary": "https://www.footballwebpages.co.uk/napoli/calendar.ics",
+  "secondary": "http://ics.fixtur.es/v2/napoli.ics"
 }
