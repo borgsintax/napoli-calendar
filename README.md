@@ -6,7 +6,12 @@ Calendario completo SSC Napoli:
 - Coppa Italia
 - Supercoppa
 
-## Google Calendar
-Aggiungi da URL:
+📲 GOOGLE CALENDAR (UNA SOLA VOLTA)
+
+Impostazioni
+
+Aggiungi calendario
+
+Da URL
 
 webcal://raw.githubusercontent.com/borgsintax/napoli-calendar/main/napoli.ics
