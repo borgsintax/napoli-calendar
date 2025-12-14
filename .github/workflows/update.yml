@@ -2,14 +2,19 @@ name: Update Napoli Calendar
 
 on:
   schedule:
-    - cron: "0 4 * * *"
+    - cron: "0 4 * * *"   # ogni giorno alle 04:00 UTC
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   update:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -17,15 +22,17 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install ics requests
+        run: |
+          pip install ics requests
 
       - name: Generate calendar
-        run: python generate_calendar.py
+        run: |
+          python generate_calendar.py
 
       - name: Commit changes
         run: |
-          git config user.name "napoli-bot"
-          git config user.email "bot@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add napoli.ics
           git commit -m "Aggiornamento calendario Napoli" || echo "Nessuna modifica"
           git push
