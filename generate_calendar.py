@@ -47,7 +47,7 @@ def add_events_from_calendar(
             continue
 
         # esclude 2024
-        if event.begin and event.begin.year == EXCLUDE_YEAR:
+        if event.begin and event.begin.year < EXCLUDE_YEAR:
             continue
 
         key = event_time_key(event)
