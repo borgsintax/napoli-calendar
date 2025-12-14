@@ -9,4 +9,4 @@ Calendario completo SSC Napoli:
 ## Google Calendar
 Aggiungi da URL:
 
-webcal://raw.githubusercontent.com/TUOUSERNAME/napoli-calendar/main/napoli.ics
+webcal://raw.githubusercontent.com/borgsintax/napoli-calendar/main/napoli.ics
