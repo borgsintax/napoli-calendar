@@ -5,7 +5,7 @@ BEGIN:VEVENT
 SEQUENCE:0
 CREATED:20250725T031102Z
 CLASS:PUBLIC
-DTSTAMP:20260628T015955Z
+DTSTAMP:20260629T024009Z
 DESCRIPTION:Calendar not up to date? Check https://fixtur.es/up-to-date?path=napoli\n\nSupport Fixtur.es via Buy Me a Coffee https://buymeacoffee.com/fixtures
 DTEND:20251203T184500Z
 LAST-MODIFIED:20251205T031039Z
@@ -19,7 +19,7 @@ BEGIN:VEVENT
 SEQUENCE:0
 CREATED:20251205T031039Z
 CLASS:PUBLIC
-DTSTAMP:20260628T015955Z
+DTSTAMP:20260629T024009Z
 DESCRIPTION:Calendar not up to date? Check https://fixtur.es/up-to-date?path=napoli\n\nSupport Fixtur.es via Buy Me a Coffee https://buymeacoffee.com/fixtures
 DTEND:20260210T214500Z
 LAST-MODIFIED:20260213T031035Z
